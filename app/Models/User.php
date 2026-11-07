@@ -16,7 +16,36 @@ class User extends Authenticatable implements FilamentUser
 
     public function canAccessPanel(Panel $panel): bool
     {
+        // Role mahasiswa hanya mengakses portal Breeze frontend, bukan panel admin Filament
+        if ($this->hasRole('mahasiswa') && !$this->hasAnyRole([
+            'super_admin', 'admin_fakultas', 'dekan', 'wakil_dekan', 
+            'kabag_tu', 'keuangan', 'admin_prodi', 'ka_prodi', 'dosen'
+        ])) {
+            return false;
+        }
+
         return true;
+    }
+
+    public function userAccesses(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(UserAccess::class);
+    }
+
+    public function accessibleStudyProgramIds(): array
+    {
+        // Role tingkat fakultas/global dapat mengakses seluruh prodi
+        if ($this->hasAnyRole(['super_admin', 'admin_fakultas', 'dekan', 'wakil_dekan', 'kabag_tu', 'keuangan'])) {
+            return StudyProgram::pluck('id')->toArray();
+        }
+
+        // Role berbasis prodi dibatasi oleh user_access
+        return $this->userAccesses()->pluck('study_program_id')->toArray();
+    }
+
+    public function registrations(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Registration::class);
     }
 
     /**
